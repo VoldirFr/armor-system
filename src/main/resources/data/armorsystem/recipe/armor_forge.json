@@ -1,0 +1,9 @@
+{
+  "type": "armorsystem:armor_forge",
+  "base": {
+    "tag": "armorsystem:base_armors"
+  },
+  "ingot": {
+    "tag": "armorsystem:armor_ingots"
+  }
+}

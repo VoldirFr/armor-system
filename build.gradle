@@ -1,0 +1,83 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+// Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    // Specify the version of NeoForge to use.
+    version = project.neo_version
+
+    runs {
+        client {
+            client()
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+        }
+
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+repositories {
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
+}
+
+dependencies {
+    // Iron's Spells 'n Spellbooks (attributs bonus: max_mana, ...) + ses libs
+    implementation "maven.modrinth:irons-spells-n-spellbooks:${project.irons_spellbooks_version}"
+    implementation "maven.modrinth:irons-lib:${project.irons_lib_version}"
+    // le maven modrinth ne publie que le jar "common" de geckolib : on embarque le jar neoforge depuis libs/
+    implementation files("libs/geckolib-neoforge-${project.geckolib_version}.jar")
+    implementation "maven.modrinth:curios:${project.curios_version}"
+    implementation "maven.modrinth:playeranimator:${project.playeranimator_version}"
+}
+
+// Expands the version placeholders in neoforge.mods.toml at build time.
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version_range: minecraft_version_range,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_version            : mod_version,
+            irons_spellbooks_range : "[1.21.1-3.16,)"
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

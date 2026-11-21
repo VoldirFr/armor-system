@@ -1,0 +1,77 @@
+package fr.voldir.armorsystem.registry;
+
+import fr.voldir.armorsystem.ArmorSystem;
+import fr.voldir.armorsystem.core.ArmorSet;
+import fr.voldir.armorsystem.core.Mineral;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.ArmorMaterial;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
+
+public class ModArmorMaterials {
+
+    public static final DeferredRegister<ArmorMaterial> ARMOR_MATERIALS =
+            DeferredRegister.create(Registries.ARMOR_MATERIAL, ArmorSystem.MOD_ID);
+
+    private static final Map<String, DeferredHolder<ArmorMaterial, ArmorMaterial>> HOLDERS = new HashMap<>();
+
+    public static void register(net.neoforged.bus.api.IEventBus modEventBus) {
+        for (ArmorSet set : ArmorSet.all()) {
+            HOLDERS.put(set.id(), ARMOR_MATERIALS.register(set.id(), () -> create(set)));
+        }
+        ARMOR_MATERIALS.register(modEventBus);
+    }
+
+    public static DeferredHolder<ArmorMaterial, ArmorMaterial> holder(ArmorSet set) {
+        return HOLDERS.get(set.id());
+    }
+
+    private static ArmorMaterial create(ArmorSet set) {
+        Mineral mineral = set.mineral();
+        EnumMap<ArmorItem.Type, Integer> defense = new EnumMap<>(ArmorItem.Type.class);
+        for (ArmorItem.Type type : ArmorItem.Type.values()) {
+            double weight = switch (type) {
+                case HELMET -> 0.15;
+                case CHESTPLATE -> 0.40;
+                case LEGGINGS -> 0.30;
+                case BOOTS -> 0.15;
+                default -> 0.0;
+            };
+            defense.put(type, Math.max(1, (int) Math.round(mineral.armorTotal() * weight)));
+        }
+        return new ArmorMaterial(
+                defense,
+                mineral.enchantability(),
+                equipSound(mineral),
+                () -> Ingredient.of(BuiltInRegistries.ITEM.get(ResourceLocation.parse(mineral.ingotId()))),
+                List.of(
+                        new ArmorMaterial.Layer(ResourceLocation.withDefaultNamespace("leather"), "", true),
+                        new ArmorMaterial.Layer(ResourceLocation.withDefaultNamespace("leather"), "_overlay", false)
+                ),
+                (float) mineral.toughness(),
+                (float) mineral.knockbackResistance()
+        );
+    }
+
+    private static Holder<SoundEvent> equipSound(Mineral mineral) {
+        return switch (mineral) {
+            case QUARTZ, REDSTONE, LAPIS, EMERALD -> SoundEvents.ARMOR_EQUIP_LEATHER;
+            case COPPER, IRON -> SoundEvents.ARMOR_EQUIP_IRON;
+            case GOLD -> SoundEvents.ARMOR_EQUIP_GOLD;
+            case DIAMOND -> SoundEvents.ARMOR_EQUIP_DIAMOND;
+            case NETHERITE -> SoundEvents.ARMOR_EQUIP_NETHERITE;
+        };
+    }
+}
