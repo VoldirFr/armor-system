@@ -1,0 +1,35 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="All Rights Reserved"
+issueTrackerURL="https://github.com/VoldirFr/armor-system/issues"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="Armor System"
+authors="VoldirFr"
+description='''
+Systeme automatique d'armures : 27 sets (9 paliers de poids x 3 sous-classes),
+teinte par la couleur hex de l'ingot source, bonus de set via Iron's Spells 'n Spellbooks.
+'''
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="${neo_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="irons_spellbooks"
+    type="required"
+    versionRange="${irons_spellbooks_range}"
+    ordering="AFTER"
+    side="BOTH"
