@@ -1,0 +1,27 @@
+package fr.voldir.armorsystem;
+
+import fr.voldir.armorsystem.config.ArmorSystemConfig;
+import fr.voldir.armorsystem.registry.ModArmorMaterials;
+import fr.voldir.armorsystem.registry.ModCreativeTabs;
+import fr.voldir.armorsystem.registry.ModItems;
+import fr.voldir.armorsystem.registry.ModRecipeSerializers;
+import fr.voldir.armorsystem.registry.ModRecipeTypes;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
+
+@Mod(ArmorSystem.MOD_ID)
+public class ArmorSystem {
+
+    public static final String MOD_ID = "armorsystem";
+
+    public ArmorSystem(IEventBus modEventBus, ModContainer modContainer) {
+        ModArmorMaterials.register(modEventBus);
+        ModItems.register(modEventBus);
+        ModRecipeTypes.register(modEventBus);
+        ModRecipeSerializers.register(modEventBus);
+        ModCreativeTabs.register(modEventBus);
+        modContainer.registerConfig(ModConfig.Type.COMMON, ArmorSystemConfig.SPEC);
+    }
+}
