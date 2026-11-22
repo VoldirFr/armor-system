@@ -9,10 +9,6 @@ public record ArmorSet(ArmorTier tier, ArmorSubclass subclass) {
         return tier.id() + "_" + subclass.id();
     }
 
-    public Mineral mineral() {
-        return Mineral.byTierIndex(tier.index());
-    }
-
     public static List<ArmorSet> all() {
         List<ArmorSet> sets = new ArrayList<>();
         for (ArmorTier tier : ArmorTier.values()) {

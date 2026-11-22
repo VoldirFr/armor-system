@@ -3,6 +3,7 @@ package fr.voldir.armorsystem;
 import fr.voldir.armorsystem.config.ArmorSystemConfig;
 import fr.voldir.armorsystem.registry.ModArmorMaterials;
 import fr.voldir.armorsystem.registry.ModCreativeTabs;
+import fr.voldir.armorsystem.registry.ModDataComponents;
 import fr.voldir.armorsystem.registry.ModItems;
 import fr.voldir.armorsystem.registry.ModRecipeSerializers;
 import fr.voldir.armorsystem.registry.ModRecipeTypes;
@@ -17,6 +18,7 @@ public class ArmorSystem {
     public static final String MOD_ID = "armorsystem";
 
     public ArmorSystem(IEventBus modEventBus, ModContainer modContainer) {
+        ModDataComponents.register(modEventBus);
         ModArmorMaterials.register(modEventBus);
         ModItems.register(modEventBus);
         ModRecipeTypes.register(modEventBus);

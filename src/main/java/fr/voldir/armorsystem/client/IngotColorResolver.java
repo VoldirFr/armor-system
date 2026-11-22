@@ -1,12 +1,15 @@
 package fr.voldir.armorsystem.client;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import fr.voldir.armorsystem.config.ArmorSystemConfig;
 import fr.voldir.armorsystem.core.Mineral;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FastColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -19,13 +22,13 @@ public final class IngotColorResolver {
     }
 
     public static int resolve(Mineral mineral) {
-        return CACHE.computeIfAbsent(mineral.id(), id -> compute(mineral));
+        return CACHE.computeIfAbsent(ArmorSystemConfig.mineralIngot(mineral), IngotColorResolver::compute);
     }
 
-    private static int compute(Mineral mineral) {
+    private static int compute(String ingotId) {
         try {
             Minecraft minecraft = Minecraft.getInstance();
-            Item ingot = mineral.ingotItem();
+            Item ingot = BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingotId));
             BakedModel model = minecraft.getItemRenderer().getModel(new ItemStack(ingot), minecraft.level, null, 0);
             TextureAtlasSprite sprite = model.getParticleIcon();
             NativeImage image = sprite.contents().getOriginalImage();
@@ -43,10 +46,10 @@ public final class IngotColorResolver {
                     count++;
                 }
             }
-            if (count == 0) return mineral.defaultColor();
+            if (count == 0) return 0xD8D8D8;
             return FastColor.ARGB32.color(255, (int) (red / count), (int) (green / count), (int) (blue / count));
         } catch (Throwable throwable) {
-            return mineral.defaultColor();
+            return 0xD8D8D8;
         }
     }
 }

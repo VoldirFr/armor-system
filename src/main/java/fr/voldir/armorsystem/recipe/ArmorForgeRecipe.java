@@ -3,17 +3,17 @@ package fr.voldir.armorsystem.recipe;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import fr.voldir.armorsystem.config.ArmorSystemConfig;
-import fr.voldir.armorsystem.core.ArmorSet;
-import fr.voldir.armorsystem.core.ArmorSubclass;
+import fr.voldir.armorsystem.item.ArmorSetItem;
+import fr.voldir.armorsystem.registry.ModDataComponents;
 import fr.voldir.armorsystem.registry.ModItems;
 import fr.voldir.armorsystem.registry.ModRecipeSerializers;
 import fr.voldir.armorsystem.registry.ModRecipeTypes;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.item.ArmorItem;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
@@ -41,7 +41,7 @@ public class ArmorForgeRecipe implements Recipe<CraftingInput> {
         for (int i = 0; i < input.size(); i++) {
             ItemStack stack = input.getItem(i);
             if (stack.isEmpty()) continue;
-            if (base.test(stack) && stack.getItem() instanceof ArmorItem) {
+            if (base.test(stack)) {
                 if (baseStack != null) return false;
                 baseStack = stack;
             } else if (ingot.test(stack)) {
@@ -54,7 +54,7 @@ public class ArmorForgeRecipe implements Recipe<CraftingInput> {
         }
         if (baseStack == null || ingotStack == null) return false;
         if (ingotCount != ArmorSystemConfig.ingotsPerArmor()) return false;
-        return resolveResult(baseStack, ingotStack) != null;
+        return resolveResult(baseStack) != null;
     }
 
     @Override
@@ -65,25 +65,22 @@ public class ArmorForgeRecipe implements Recipe<CraftingInput> {
             ItemStack stack = input.getItem(i);
             if (stack.isEmpty()) continue;
             if (base.test(stack)) baseStack = stack;
-            else ingotStack = stack;
+            else if (ingot.test(stack)) ingotStack = stack;
         }
-        Item result = resolveResult(baseStack, ingotStack);
-        return result == null ? ItemStack.EMPTY : new ItemStack(result);
+        Item result = resolveResult(baseStack);
+        if (result == null) return ItemStack.EMPTY;
+        ItemStack out = new ItemStack(result);
+        out.set(ModDataComponents.MATERIAL.get(), BuiltInRegistries.ITEM.getKey(ingotStack.getItem()));
+        return out;
     }
 
-    private static Item resolveResult(ItemStack baseStack, ItemStack ingotStack) {
-        if (baseStack == null || ingotStack == null) return null;
-        if (!(baseStack.getItem() instanceof ArmorItem baseArmor)) return null;
-        int tierIndex = ArmorSystemConfig.tierOfItem(ingotStack.getItem());
-        if (tierIndex < 0) return null;
-        ArmorSubclass subclass = ArmorSystemConfig.subclassOf(baseArmor.getMaterial());
-        if (subclass == null) return null;
-        ArmorSet set = ArmorSet.of(tierIndex, subclass.id());
-        if (set == null) return null;
-        EquipmentSlot slot = baseArmor.getEquipmentSlot();
-        ArmorItem.Type type = ModItems.typeForSlot(slot);
-        if (type == null) return null;
-        return ModItems.get(set, type);
+    private static Item resolveResult(ItemStack baseStack) {
+        if (baseStack == null) return null;
+        ResourceLocation key = BuiltInRegistries.ITEM.getKey(baseStack.getItem());
+        String path = key.getPath();
+        if (!path.startsWith(ModItems.BASE_PREFIX)) return null;
+        Item result = ModItems.get(path.substring(ModItems.BASE_PREFIX.length()));
+        return result instanceof ArmorSetItem ? result : null;
     }
 
     @Override
@@ -93,8 +90,8 @@ public class ArmorForgeRecipe implements Recipe<CraftingInput> {
 
     @Override
     public ItemStack getResultItem(HolderLookup.Provider registries) {
-        Item item = ModItems.get(ArmorSet.of(4, ArmorSubclass.HYBRID.id()), ArmorItem.Type.CHESTPLATE);
-        return new ItemStack(item);
+        Item item = ModItems.get("medium_hybrid_chestplate");
+        return item == null ? ItemStack.EMPTY : new ItemStack(item);
     }
 
     @Override
