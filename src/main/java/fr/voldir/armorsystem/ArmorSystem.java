@@ -6,7 +6,6 @@ import fr.voldir.armorsystem.registry.ModCreativeTabs;
 import fr.voldir.armorsystem.registry.ModDataComponents;
 import fr.voldir.armorsystem.registry.ModItems;
 import fr.voldir.armorsystem.registry.ModRecipeSerializers;
-import fr.voldir.armorsystem.registry.ModRecipeTypes;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -21,7 +20,6 @@ public class ArmorSystem {
         ModDataComponents.register(modEventBus);
         ModArmorMaterials.register(modEventBus);
         ModItems.register(modEventBus);
-        ModRecipeTypes.register(modEventBus);
         ModRecipeSerializers.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         modContainer.registerConfig(ModConfig.Type.COMMON, ArmorSystemConfig.SPEC);

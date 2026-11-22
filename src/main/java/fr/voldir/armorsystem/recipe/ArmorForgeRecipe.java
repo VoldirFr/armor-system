@@ -7,7 +7,6 @@ import fr.voldir.armorsystem.item.ArmorSetItem;
 import fr.voldir.armorsystem.registry.ModDataComponents;
 import fr.voldir.armorsystem.registry.ModItems;
 import fr.voldir.armorsystem.registry.ModRecipeSerializers;
-import fr.voldir.armorsystem.registry.ModRecipeTypes;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -125,7 +124,7 @@ public class ArmorForgeRecipe implements Recipe<CraftingInput> {
 
     @Override
     public RecipeType<?> getType() {
-        return ModRecipeTypes.ARMOR_FORGE.get();
+        return RecipeType.CRAFTING;
     }
 
     public static class Serializer implements RecipeSerializer<ArmorForgeRecipe> {

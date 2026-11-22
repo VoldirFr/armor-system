@@ -16,18 +16,22 @@ Mod NeoForge 1.21.1 (`armorsystem`) : système automatique d'armures.
 - **Stats par pièce** façon table d'attributs (config `minerals.<id>.*`) : `armor`, `armorToughness`,
   `knockbackResistance`, `movementSpeed`, `maxHealth`, `attackSpeed`, `luck`, `attackDamagePct` (%),
   `durability`, `enchantability` — valeurs du matériau choisi, + bonus % du palier.
-- **Couleur** : à la pose, le mod calcule en code la **couleur HEX de la texture de l'ingot** (moyenne de
-  tous ses pixels, `IngotColorResolver`) et applique ce color shift uniquement sur le **layer nommé
-  `color_layer`** (`ArmorSetItem.COLOR_LAYER_NAME`) — à la fois sur l'armure portée
-  (`IClientItemExtensions#getArmorLayerTintColor`) et sur l'icône (layer 1 du modèle, `ItemColor`).
+- **Couleur** : le mod calcule en code la **couleur HEX de la texture de l'ingot** (moyenne de tous ses
+  pixels, `IngotColorResolver`) et applique ce **color shift** sur les layers teintables de l'armure —
+  portée (`IClientItemExtensions#getArmorLayerTintColor` sur `layer.dyeable()`, dont le layer nommé
+  `color_layer` = `ArmorSetItem.COLOR_LAYER_NAME`) et icône d'inventaire (`ItemColor`, tint index 0).
   Aucune texture générée par matériau ; la HEX calculée est overridable via `minerals.<id>.colorHex`.
-  Base visuelle (version test) : armure vanilla **en fer** (`minecraft:iron` layer) + layer `color_layer`
-  blanc (`assets/armorsystem/textures/models/armor/color_layer_layer_*.png`). Pour des modèles 3D :
-  ajoutez vos layers, seul celui dont le nom contient `color_layer` est teinté.
-- **Craft** (`armorsystem:armor_forge`) : 1 **armure de base** (template `armorsystem:base_<set>_<slot>`,
-  tag `armorsystem:base_armors` — choisit l'archétype et la pièce) + N **ingots**
-  (tag `armorsystem:armor_ingots`, N = `craft.ingotsPerArmor`) → la pièce d'archétype avec le matériau
-  de l'ingot stocké dans le composant `armorsystem:material`.
+  Base visuelle (version test) : armure vanilla **en fer** (`minecraft:iron` layer, teinté par la HEX du
+  matériau) + layer nommé `color_layer` (placeholder transparent,
+  `assets/armorsystem/textures/models/armor/color_layer_layer_*.png`). Pour des modèles 3D multi-layers :
+  ajoutez vos layers, les layers `dyeable` (ex. nommés `color_layer`) sont teintés.
+- **Craft simple** (`armorsystem:armor_forge`, **table de craft 3×3 / grille 2×2 de l'inventaire**) :
+  1 **pièce d'armure de base** (armure vanilla OU template
+  `armorsystem:base_<set>_<slot>`, tag `armorsystem:base_armors`) + **1 ingot** (tag
+  `armorsystem:armor_ingots`, N = `craft.ingotsPerArmor`, défaut 1) → la pièce d'archétype avec le matériau
+  de l'ingot stocké dans le composant `armorsystem:material`. Les armures vanilla servent de base via le
+  mapping `craft.vanillaArmorToSet`. **Seules les bases sont visibles dans l'onglet créatif** ; les armures
+  s'obtiennent uniquement par craft.
 
 ## Config
 
