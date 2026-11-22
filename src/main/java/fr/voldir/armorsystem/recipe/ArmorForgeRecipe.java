@@ -3,6 +3,7 @@ package fr.voldir.armorsystem.recipe;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import fr.voldir.armorsystem.config.ArmorSystemConfig;
+import fr.voldir.armorsystem.core.Mineral;
 import fr.voldir.armorsystem.item.ArmorSetItem;
 import fr.voldir.armorsystem.registry.ModDataComponents;
 import fr.voldir.armorsystem.registry.ModItems;
@@ -43,7 +44,7 @@ public class ArmorForgeRecipe implements CraftingRecipe {
             if (base.test(stack)) {
                 if (baseStack != null) return false;
                 baseStack = stack;
-            } else if (ingot.test(stack)) {
+            } else if (ingot.test(stack) || isConfiguredIngot(stack)) {
                 if (ingotStack != null && !ItemStack.isSameItem(ingotStack, stack)) return false;
                 ingotStack = stack;
                 ingotCount++;
@@ -64,13 +65,22 @@ public class ArmorForgeRecipe implements CraftingRecipe {
             ItemStack stack = input.getItem(i);
             if (stack.isEmpty()) continue;
             if (base.test(stack)) baseStack = stack;
-            else if (ingot.test(stack)) ingotStack = stack;
+            else if (ingot.test(stack) || isConfiguredIngot(stack)) ingotStack = stack;
         }
         Item result = resolveResult(baseStack);
-        if (result == null) return ItemStack.EMPTY;
+        if (result == null || ingotStack == null) return ItemStack.EMPTY;
         ItemStack out = new ItemStack(result);
         out.set(ModDataComponents.MATERIAL.get(), BuiltInRegistries.ITEM.getKey(ingotStack.getItem()));
         return out;
+    }
+
+    /** An ingot declared in the config ('minerals.<id>.ingot'), even if not in the armor_ingots tag. */
+    private static boolean isConfiguredIngot(ItemStack stack) {
+        String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+        for (Mineral mineral : Mineral.values()) {
+            if (ArmorSystemConfig.mineralIngot(mineral).equals(id)) return true;
+        }
+        return false;
     }
 
     private static Item resolveResult(ItemStack baseStack) {

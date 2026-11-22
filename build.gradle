@@ -27,6 +27,11 @@ neoForge {
             programArgument '--nogui'
         }
 
+        gameTestServer {
+            type = 'gameTestServer'
+            programArgument '--nogui'
+        }
+
         configureEach {
             systemProperty 'forge.logging.markers', 'REGISTRIES'
             logLevel = org.slf4j.event.Level.DEBUG

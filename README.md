@@ -27,11 +27,19 @@ Mod NeoForge 1.21.1 (`armorsystem`) : système automatique d'armures.
   ajoutez vos layers, les layers `dyeable` (ex. nommés `color_layer`) sont teintés.
 - **Craft simple** (`armorsystem:armor_forge`, **table de craft 3×3 / grille 2×2 de l'inventaire**) :
   1 **pièce d'armure de base** (armure vanilla OU template
-  `armorsystem:base_<set>_<slot>`, tag `armorsystem:base_armors`) + **1 ingot** (tag
-  `armorsystem:armor_ingots`, N = `craft.ingotsPerArmor`, défaut 1) → la pièce d'archétype avec le matériau
-  de l'ingot stocké dans le composant `armorsystem:material`. Les armures vanilla servent de base via le
-  mapping `craft.vanillaArmorToSet`. **Seules les bases sont visibles dans l'onglet créatif** ; les armures
-  s'obtiennent uniquement par craft.
+  `armorsystem:base_<set>_<slot>`, tag `armorsystem:base_armors`) + **1 minerai**
+  (les 9 minerais des défauts `minerals.<id>.ingot`, tag `armorsystem:armor_ingots`,
+  N = `craft.ingotsPerArmor`, défaut 1) → la pièce d'archétype avec le nom du minerai
+  (ex : « Plastron ultra léger (physique) Diamant ») et le matériau de l'ingot stocké dans le composant
+  `armorsystem:material`. Les minerais modifiés dans la config (`minerals.<id>.ingot`) sont reconnus par
+  la recette même hors tag. Les armures vanilla servent de base via le mapping `craft.vanillaArmorToSet`.
+  **Seules les bases sont visibles dans l'onglet créatif** ; les armures s'obtiennent uniquement par craft.
+  ⚠️ **Migration 1.0.0 → >= 1.0.2** : si `craft.ingotsPerArmor` vaut `4` dans votre `config/armorsystem-common.toml`
+  (ancien défaut de la 1.0.0 persisté), remettez-le à `1` — sinon la recette exige 4 minerais et « ne crafts rien »
+  avec 1 seul.
+- **Vérification en jeu** : GameTests serveur (`fr.voldir.armorsystem.gametest.ArmorForgeGameTests`,
+  `gradlew runGameTestServer`) couvrant le craft base+minerai pour les 9 minerais, les bases vanilla,
+  les cas négatifs et le nom affiché. Le template vide requis vit dans `gameteststructures/`.
 
 ## Config
 

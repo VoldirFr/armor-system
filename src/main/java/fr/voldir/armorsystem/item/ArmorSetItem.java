@@ -19,6 +19,7 @@ import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArmorMaterial;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 
@@ -51,6 +52,21 @@ public class ArmorSetItem extends ArmorItem {
         Mineral mineral = getMineral(stack);
         int parsed = ArmorSystemConfig.parseHexColor(ArmorSystemConfig.mineralColorHex(mineral));
         return parsed >= 0 ? parsed : mineral.defaultColor();
+    }
+
+    @Override
+    public Component getName(ItemStack stack) {
+        if (stack.getItem() != this || stack.get(ModDataComponents.MATERIAL.get()) == null) {
+            return super.getName(stack);
+        }
+        // Crafted piece: display the material in the name, e.g. "Ultra light Physical Diamond Chestplate".
+        Mineral mineral = getMineral(stack);
+        String ingotId = ArmorSystemConfig.mineralIngot(mineral);
+        Item ingot = BuiltInRegistries.ITEM.get(ResourceLocation.parse(ingotId));
+        if (ingot == Items.AIR) return super.getName(stack);
+        return super.getName(stack).copy()
+                .append(" ")
+                .append(new ItemStack(ingot).getHoverName());
     }
 
     @Override
