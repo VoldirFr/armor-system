@@ -15,14 +15,14 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 
-public class ArmorForgeRecipe implements Recipe<CraftingInput> {
+public class ArmorForgeRecipe implements CraftingRecipe {
 
     private final Ingredient base;
     private final Ingredient ingot;
@@ -123,8 +123,8 @@ public class ArmorForgeRecipe implements Recipe<CraftingInput> {
     }
 
     @Override
-    public RecipeType<?> getType() {
-        return RecipeType.CRAFTING;
+    public CraftingBookCategory category() {
+        return CraftingBookCategory.EQUIPMENT;
     }
 
     public static class Serializer implements RecipeSerializer<ArmorForgeRecipe> {
