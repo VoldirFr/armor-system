@@ -24,7 +24,7 @@ public class ArmorSystemClient {
     }
 
     private static void onRegisterItemColors(RegisterColorHandlersEvent.Item event) {
-        ItemColor color = (stack, tintIndex) -> tintIndex == 1 && stack.getItem() instanceof ArmorSetItem armor
+        ItemColor color = (stack, tintIndex) -> tintIndex == 0 && stack.getItem() instanceof ArmorSetItem armor
                 ? 0xFF000000 | colorOf(armor, stack)
                 : 0xFFFFFFFF;
         for (ArmorSetItem item : ModItems.armorSetItems()) {
@@ -37,7 +37,7 @@ public class ArmorSystemClient {
             event.registerItem(new IClientItemExtensions() {
                 @Override
                 public int getArmorLayerTintColor(ItemStack stack, LivingEntity entity, ArmorMaterial.Layer layer, int layerIndex, int fallbackColor) {
-                    if (layer.texture(false).getPath().contains(ArmorSetItem.COLOR_LAYER_NAME)) {
+                    if (layer.dyeable()) {
                         return 0xFF000000 | colorOf(item, stack);
                     }
                     return 0xFFFFFFFF;

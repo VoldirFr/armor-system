@@ -1,7 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "minecraft:item/iron_boots",
-    "layer1": "armorsystem:item/boots_color"
+    "layer0": "minecraft:item/iron_boots"
   }
 }

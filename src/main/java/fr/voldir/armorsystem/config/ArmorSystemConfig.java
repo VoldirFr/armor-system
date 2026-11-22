@@ -2,7 +2,9 @@ package fr.voldir.armorsystem.config;
 
 import fr.voldir.armorsystem.core.ArmorTier;
 import fr.voldir.armorsystem.core.Mineral;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.world.item.ArmorItem;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
@@ -29,6 +31,9 @@ public class ArmorSystemConfig {
 
     private static ModConfigSpec.ConfigValue<Integer> INGOTS_PER_ARMOR;
     private static ModConfigSpec.ConfigValue<String> DEFAULT_MATERIAL;
+    private static ModConfigSpec.ConfigValue<List<? extends String>> VANILLA_ARMOR_TO_SET;
+    private static List<? extends String> lastVanillaMapRaw;
+    private static Map<String, String> vanillaArmorToSetMap;
 
     private static ModConfigSpec.ConfigValue<Boolean> SET_BONUS_ENABLED;
     private static ModConfigSpec.ConfigValue<Double> MAGIC_MANA;
@@ -74,9 +79,24 @@ public class ArmorSystemConfig {
         }
         builder.pop();
 
-        builder.comment("Crafting: base armor template (tag armorsystem:base_armors) + ingots -> set piece with the ingot as material.").push("craft");
-        INGOTS_PER_ARMOR = builder.comment("Number of ingots required per crafted armor piece.").defineInRange("ingotsPerArmor", 4, 1, 64);
+        builder.comment("Crafting: 1 base armor (vanilla armor piece or armorsystem:base_* template, tag armorsystem:base_armors) + ingots -> set piece with the ingot as material.").push("craft");
+        INGOTS_PER_ARMOR = builder.comment("Number of ingots required per crafted armor piece (simple craft: 1).").defineInRange("ingotsPerArmor", 1, 1, 64);
         DEFAULT_MATERIAL = builder.comment("Ingot item used as material for armor stacks that have no material component yet.").define("defaultMaterial", "minecraft:iron_ingot");
+        VANILLA_ARMOR_TO_SET = builder.comment("Maps a vanilla armor item to the archetype of the resulting set ('<item_id>=<tier>_<subclass>'), used when the base is a vanilla armor piece.")
+                .defineList("vanillaArmorToSet", List.of(
+                        "minecraft:leather_helmet=light_physical", "minecraft:leather_chestplate=light_physical",
+                        "minecraft:leather_leggings=light_physical", "minecraft:leather_boots=light_physical",
+                        "minecraft:chainmail_helmet=light_hybrid", "minecraft:chainmail_chestplate=light_hybrid",
+                        "minecraft:chainmail_leggings=light_hybrid", "minecraft:chainmail_boots=light_hybrid",
+                        "minecraft:iron_helmet=medium_physical", "minecraft:iron_chestplate=medium_physical",
+                        "minecraft:iron_leggings=medium_physical", "minecraft:iron_boots=medium_physical",
+                        "minecraft:golden_helmet=medium_magic", "minecraft:golden_chestplate=medium_magic",
+                        "minecraft:golden_leggings=medium_magic", "minecraft:golden_boots=medium_magic",
+                        "minecraft:diamond_helmet=heavy_hybrid", "minecraft:diamond_chestplate=heavy_hybrid",
+                        "minecraft:diamond_leggings=heavy_hybrid", "minecraft:diamond_boots=heavy_hybrid",
+                        "minecraft:netherite_helmet=ultra_heavy_physical", "minecraft:netherite_chestplate=ultra_heavy_physical",
+                        "minecraft:netherite_leggings=ultra_heavy_physical", "minecraft:netherite_boots=ultra_heavy_physical"
+                ), o -> o instanceof String);
         builder.pop();
 
         builder.comment("Full-set bonuses, applied only when the 4 pieces of the same archetype are equipped, displayed at the bottom of the tooltip.").push("setBonus");
@@ -161,6 +181,20 @@ public class ArmorSystemConfig {
 
     public static String defaultMaterial() {
         return DEFAULT_MATERIAL.get();
+    }
+
+    public static Map<String, String> vanillaArmorToSet() {
+        List<? extends String> raw = VANILLA_ARMOR_TO_SET.get();
+        if (raw != lastVanillaMapRaw) {
+            Map<String, String> map = new HashMap<>();
+            for (String entry : raw) {
+                String[] parts = entry.split("=", 2);
+                if (parts.length == 2) map.put(parts[0].trim(), parts[1].trim());
+            }
+            vanillaArmorToSetMap = map;
+            lastVanillaMapRaw = raw;
+        }
+        return vanillaArmorToSetMap;
     }
 
     public static boolean setBonusEnabled() {

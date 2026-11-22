@@ -24,6 +24,8 @@ public class ModArmorMaterials {
     public static final DeferredRegister<ArmorMaterial> ARMOR_MATERIALS =
             DeferredRegister.create(Registries.ARMOR_MATERIAL, ArmorSystem.MOD_ID);
 
+    public static final ResourceLocation BASE_LAYER_ASSET = ResourceLocation.withDefaultNamespace("iron");
+
     private static final Map<String, DeferredHolder<ArmorMaterial, ArmorMaterial>> HOLDERS = new HashMap<>();
 
     public static void register(net.neoforged.bus.api.IEventBus modEventBus) {
@@ -55,7 +57,7 @@ public class ModArmorMaterials {
                 equipSound(),
                 () -> Ingredient.of(ModTags.ARMOR_INGOTS),
                 List.of(
-                        new ArmorMaterial.Layer(ResourceLocation.withDefaultNamespace("iron"), "", false),
+                        new ArmorMaterial.Layer(BASE_LAYER_ASSET, "", true),
                         new ArmorMaterial.Layer(ResourceLocation.fromNamespaceAndPath(ArmorSystem.MOD_ID, ArmorSetItem.COLOR_LAYER_NAME), "", true)
                 ),
                 (float) Mineral.IRON.toughness(),

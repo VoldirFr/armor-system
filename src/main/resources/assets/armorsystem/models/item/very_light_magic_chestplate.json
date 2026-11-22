@@ -1,7 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "minecraft:item/iron_chestplate",
-    "layer1": "armorsystem:item/chestplate_color"
+    "layer0": "minecraft:item/iron_chestplate"
   }
 }

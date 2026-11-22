@@ -76,11 +76,22 @@ public class ArmorForgeRecipe implements Recipe<CraftingInput> {
 
     private static Item resolveResult(ItemStack baseStack) {
         if (baseStack == null) return null;
-        ResourceLocation key = BuiltInRegistries.ITEM.getKey(baseStack.getItem());
+        Item baseItem = baseStack.getItem();
+        ResourceLocation key = BuiltInRegistries.ITEM.getKey(baseItem);
         String path = key.getPath();
-        if (!path.startsWith(ModItems.BASE_PREFIX)) return null;
-        Item result = ModItems.get(path.substring(ModItems.BASE_PREFIX.length()));
-        return result instanceof ArmorSetItem ? result : null;
+        if (path.startsWith(ModItems.BASE_PREFIX)) {
+            Item result = ModItems.get(path.substring(ModItems.BASE_PREFIX.length()));
+            return result instanceof ArmorSetItem ? result : null;
+        }
+        if (baseItem instanceof net.minecraft.world.item.ArmorItem armor) {
+            net.minecraft.world.item.ArmorItem.Type type = ModItems.typeForSlot(armor.getEquipmentSlot());
+            if (type == null) return null;
+            String setId = ArmorSystemConfig.vanillaArmorToSet().get(key.toString());
+            if (setId == null) return null;
+            Item result = ModItems.get(setId + "_" + type.getName());
+            return result instanceof ArmorSetItem ? result : null;
+        }
+        return null;
     }
 
     @Override

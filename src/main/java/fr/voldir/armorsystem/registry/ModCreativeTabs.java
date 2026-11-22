@@ -17,10 +17,7 @@ public class ModCreativeTabs {
             CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.armorsystem"))
                     .icon(() -> new ItemStack(ModItems.get("ultra_heavy_physical_chestplate")))
-                    .displayItems((parameters, output) -> {
-                        ModItems.armorItems().forEach(holder -> output.accept(holder.get()));
-                        ModItems.baseItems().forEach(holder -> output.accept(holder.get()));
-                    })
+                    .displayItems((parameters, output) -> ModItems.baseItems().forEach(holder -> output.accept(holder.get())))
                     .build());
 
     public static void register(net.neoforged.bus.api.IEventBus modEventBus) {
