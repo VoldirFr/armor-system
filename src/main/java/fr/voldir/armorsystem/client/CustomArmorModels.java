@@ -342,6 +342,8 @@ public final class CustomArmorModels {
     private static void applyCubeUVFixes(ModelPart root, ArmorTier.ModelClass modelClass, List<CubeUVFix> fixes) {
         float texW = TEXTURE_SIZES.get(modelClass)[0];
         float texH = TEXTURE_SIZES.get(modelClass)[1];
+        int applied = 0;
+        int missing = 0;
         for (CubeUVFix fix : fixes) {
             try {
                 ModelPart parent = getChildOrNull(root, fix.partPath().get(0));
@@ -349,14 +351,20 @@ public final class CustomArmorModels {
                     parent = getChildOrNull(parent, fix.partPath().get(i));
                 }
                 ModelPart cubePart = getChildOrNull(parent, fix.childName());
-                if (cubePart == null) continue;
+                if (cubePart == null) {
+                    missing++;
+                    continue;
+                }
                 for (ModelPart.Cube cube : cubePart.cubes) {
                     setGeckoUVs(cube, fix.u(), fix.v(), fix.w(), fix.h(), fix.d(), fix.mirror(), texW, texH);
+                    applied++;
                 }
             } catch (NoSuchElementException | IndexOutOfBoundsException ignored) {
                 // part missing (e.g. hidden stub) — leave vanilla uvs untouched
             }
         }
+        ArmorSystem.LOGGER.debug("UVFIX {}: {} cubes found, {} fixed, {} missing, tex {}x{}",
+                modelClass, fixes.size(), applied, missing, (int) texW, (int) texH);
     }
 
     private static void setGeckoUVs(ModelPart.Cube cube, float u, float v, float w, float h, float d,
@@ -370,18 +378,25 @@ public final class CustomArmorModels {
             // The cube is unwrapped as one Bedrock "box": a u-row of
             // [E | N | W | S] followed by an u-row of [U | D], with e1..s2 the
             // four corner u's of the horizontal strip (see break-down below).
-            float e1 = u;               // east quad, first column
-            float e2 = u + d;           // east quad, second column
-            float w1 = u + d + w;       // west quad, first column
-            float w2 = u + d + w + d;   // west quad, second column
-            float n1 = u + d;           // north quad, first column
-            float n2 = u + d + w;       // north quad, second column
-            float s1 = u + d + w + d;   // south quad, first column
-            float s2 = u + d + w + d + w; // south quad, second column
-            float p1 = u + d;           // up quad, first column
-            float p2 = u + d + w;       // up quad, second column
-            float q1 = u + d + w;       // down quad, first column
-            float q2 = u + d + 2 * w;   // down quad, second column
+            // Blockbench's Box-UV unwrap TRUNCATES the cube dimensions to whole
+            // texels (a 10.9-deep cube unwraps as if 10 deep), so the texture
+            // painted in Blockbench only aligns when we floor() the dimensions
+            // for the uv computation. The geometry itself keeps its exact size.
+            float fw = (float) Math.floor(w + 1.0e-4f);
+            float fh = (float) Math.floor(h + 1.0e-4f);
+            float fd = (float) Math.floor(d + 1.0e-4f);
+            float e1 = u;                 // east quad, first column
+            float e2 = u + fd;            // east quad, second column
+            float w1 = u + fd + fw;       // west quad, first column
+            float w2 = u + fd + fw + fd;  // west quad, second column
+            float n1 = u + fd;            // north quad, first column
+            float n2 = u + fd + fw;       // north quad, second column
+            float s1 = u + fd + fw + fd;  // south quad, first column
+            float s2 = u + fd + fw + fd + fw; // south quad, second column
+            float p1 = u + fd;            // up quad, first column
+            float p2 = u + fd + fw;       // up quad, second column
+            float q1 = u + fd + fw;       // down quad, first column
+            float q2 = u + fd + 2 * fw;   // down quad, second column
             for (ModelPart.Vertex vertex : poly.vertices) {
                 // flags of the cube corner this vertex sits on: onXplus = the
                 // +x side (bedrock x=0 corners), top = the bedrock top row
@@ -401,12 +416,12 @@ public final class CustomArmorModels {
                     default -> Float.NaN;
                 };
                 if (Float.isNaN(uu)) continue;
-                // v: side faces run top->bottom over the v+d..v+d+h strip;
+                // v: side faces run top->bottom over the v+fd..v+fd+fh strip;
                 // up/down slabs sit in the header strip and run along z:
-                // right(+z)->v, back(-z)->v+d
+                // right(+z)->v, back(-z)->v+fd
                 float vv = face == Direction.UP || face == Direction.DOWN
-                        ? (right ? v : v + d)
-                        : (top ? v + d : v + d + h);
+                        ? (right ? v : v + fd)
+                        : (top ? v + fd : v + fd + fh);
                 vertex.u = uu / texW;
                 vertex.v = vv / texH;
             }
