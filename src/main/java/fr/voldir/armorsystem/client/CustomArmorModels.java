@@ -15,6 +15,7 @@ import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -24,8 +25,10 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,6 +75,15 @@ public final class CustomArmorModels {
             new EnumMap<>(ArmorTier.ModelClass.class);
     private static final Map<ArmorTier.ModelClass, LayerDefinition> LAYER_DEFINITIONS = new ConcurrentHashMap<>();
 
+    /** Per-cube UV fix metadata, gathered while parsing the geometry, applied after baking. */
+    private record CubeUVFix(List<String> partPath, String childName,
+                             float u, float v, float w, float h, float d, boolean mirror) {
+    }
+
+    /** Texture size from the geometry description, plus the fixes. */
+    private static final Map<ArmorTier.ModelClass, float[]> TEXTURE_SIZES = new ConcurrentHashMap<>();
+    private static final Map<ArmorTier.ModelClass, List<CubeUVFix>> CUBE_UV_FIXES = new ConcurrentHashMap<>();
+
     private CustomArmorModels() {
     }
 
@@ -88,6 +100,7 @@ public final class CustomArmorModels {
      */
     private static ModelPart bake(ArmorTier.ModelClass modelClass, EquipmentSlot slot) {
         ModelPart root = layerDefinition(modelClass).bakeRoot();
+        applyCubeUVFixes(root, modelClass, CUBE_UV_FIXES.get(modelClass));
         switch (slot) {
             case LEGS -> {
                 setVisible(root, "left_leg", "armorleftboot");
@@ -132,6 +145,8 @@ public final class CustomArmorModels {
         JsonObject description = geometry.getAsJsonObject("description");
         int textureWidth = description.get("texture_width").getAsInt();
         int textureHeight = description.get("texture_height").getAsInt();
+        TEXTURE_SIZES.put(modelClass, new float[]{textureWidth, textureHeight});
+        CUBE_UV_FIXES.put(modelClass, new ArrayList<>());
 
         Map<String, JsonObject> bones = new HashMap<>();
         for (JsonElement element : geometry.getAsJsonArray("bones")) {
@@ -144,7 +159,7 @@ public final class CustomArmorModels {
             createPart(bones, parts, root, name);
         }
         for (Map.Entry<String, JsonObject> entry : bones.entrySet()) {
-            attachCubes(entry.getKey(), entry.getValue(), parts);
+            attachCubes(entry.getKey(), entry.getValue(), bones, parts, modelClass);
         }
 
         return LayerDefinition.create(mesh, textureWidth, textureHeight);
@@ -248,10 +263,13 @@ public final class CustomArmorModels {
         }
     }
 
-    private static void attachCubes(String boneName, JsonObject bone, Map<String, PartDefinition> parts) {
+    private static void attachCubes(String boneName, JsonObject bone, Map<String, JsonObject> bones,
+                                    Map<String, PartDefinition> parts, ArmorTier.ModelClass modelClass) {
         if (!bone.has("cubes")) return;
         PartDefinition part = parts.get(boneName);
         float[] bonePivot = pivotOf(bone);
+        List<String> partPath = partPathOf(bones, boneName);
+        List<CubeUVFix> fixes = CUBE_UV_FIXES.get(modelClass);
 
         JsonArray cubes = bone.getAsJsonArray("cubes");
         for (int i = 0; i < cubes.size(); i++) {
@@ -286,7 +304,132 @@ public final class CustomArmorModels {
             if (mirror) builder.mirror();
             builder.addBox(rel[0], rel[1], rel[2], size[0], size[1], size[2], new CubeDeformation(inflate));
             part.addOrReplaceChild(childName, builder, pose);
+
+            // Bedrock/Blockbench uses a different per-face uv assignment than the
+            // vanilla Cube constructor (see applyCubeUVFixes); the fix is applied
+            // to the baked cube because CubeListBuilder has no per-face uv API.
+            fixes.add(new CubeUVFix(partPath, childName, uv[0], uv[1], size[0], size[1], size[2], mirror));
         }
+    }
+
+    /** Part-name path from the root part down to the part of the given bone. */
+    private static List<String> partPathOf(Map<String, JsonObject> bones, String boneName) {
+        List<String> path = new ArrayList<>();
+        String current = boneName;
+        while (true) {
+            JsonObject bone = bones.get(current);
+            String parentName = bone.has("parent") ? bone.get("parent").getAsString() : null;
+            if (parentName == null) {
+                path.add(0, ROOT_BONES.containsKey(current) ? ROOT_BONES.get(current) : sanitizeName(current));
+                return path;
+            }
+            path.add(0, sanitizeName(current));
+            current = parentName;
+        }
+    }
+
+    /**
+     * Overwrites every cube's per-face uv with the Bedrock/Blockbench convention
+     * (the one the {@code *_layer1_layer_*} textures were painted with).
+     *
+     * <p>Differences vs the vanilla box-uv layout computed by {@code ModelPart.Cube}:
+     * <ul>
+     *   <li>north/south: same uv rect, but the corner uv assignment is rotated 180&deg;.</li>
+     *   <li>east/west: the side slabs of the box unwrap are swapped.</li>
+     *   <li>up/down: the top slabs are swapped (and down's v-range runs inverted).</li>
+     * </ul>
+     */
+    private static void applyCubeUVFixes(ModelPart root, ArmorTier.ModelClass modelClass, List<CubeUVFix> fixes) {
+        float texW = TEXTURE_SIZES.get(modelClass)[0];
+        float texH = TEXTURE_SIZES.get(modelClass)[1];
+        for (CubeUVFix fix : fixes) {
+            try {
+                ModelPart parent = getChildOrNull(root, fix.partPath().get(0));
+                for (int i = 1; i < fix.partPath().size(); i++) {
+                    parent = getChildOrNull(parent, fix.partPath().get(i));
+                }
+                ModelPart cubePart = getChildOrNull(parent, fix.childName());
+                if (cubePart == null) continue;
+                for (ModelPart.Cube cube : cubePart.cubes) {
+                    setGeckoUVs(cube, fix.u(), fix.v(), fix.w(), fix.h(), fix.d(), fix.mirror(), texW, texH);
+                }
+            } catch (NoSuchElementException | IndexOutOfBoundsException ignored) {
+                // part missing (e.g. hidden stub) — leave vanilla uvs untouched
+            }
+        }
+    }
+
+    private static void setGeckoUVs(ModelPart.Cube cube, float u, float v, float w, float h, float d,
+                                    boolean mirror, float texW, float texH) {
+        float cx = (cube.minX + cube.maxX) * 0.5f;
+        float cy = (cube.minY + cube.maxY) * 0.5f;
+        float cz = (cube.minZ + cube.maxZ) * 0.5f;
+        for (ModelPart.Polygon poly : cube.polygons) {
+            Direction face = faceOf(poly, cx, cy, cz);
+            if (face == null) continue;
+            // The cube is unwrapped as one Bedrock "box": a u-row of
+            // [E | N | W | S] followed by an u-row of [U | D], with e1..s2 the
+            // four corner u's of the horizontal strip (see break-down below).
+            float e1 = u;               // east quad, first column
+            float e2 = u + d;           // east quad, second column
+            float w1 = u + d + w;       // west quad, first column
+            float w2 = u + d + w + d;   // west quad, second column
+            float n1 = u + d;           // north quad, first column
+            float n2 = u + d + w;       // north quad, second column
+            float s1 = u + d + w + d;   // south quad, first column
+            float s2 = u + d + w + d + w; // south quad, second column
+            float p1 = u + d;           // up quad, first column
+            float p2 = u + d + w;       // up quad, second column
+            float q1 = u + d + w;       // down quad, first column
+            float q2 = u + d + 2 * w;   // down quad, second column
+            for (ModelPart.Vertex vertex : poly.vertices) {
+                // flags of the cube corner this vertex sits on: onXplus = the
+                // +x side (bedrock x=0 corners), top = the bedrock top row
+                // (y=h), right = the +z side (bedrock z=d). Under mirror the
+                // east/west quads swap physical sides, so their slabs swap too;
+                // the u order just inverts on north/south/up/down.
+                boolean onXplus = vertex.pos.x() > cx;
+                boolean top = vertex.pos.y() < cy;
+                boolean right = vertex.pos.z() > cz;
+                float uu = switch (face) {
+                    case EAST -> mirror ? (right ? e1 : e2) : (right ? w2 : w1);
+                    case WEST -> mirror ? (right ? w2 : w1) : (right ? e1 : e2);
+                    case NORTH -> mirror ? (onXplus ? n1 : n2) : (onXplus ? n2 : n1);
+                    case SOUTH -> mirror ? (onXplus ? s2 : s1) : (onXplus ? s1 : s2);
+                    case UP -> mirror ? (onXplus ? p1 : p2) : (onXplus ? p2 : p1);
+                    case DOWN -> mirror ? (onXplus ? q1 : q2) : (onXplus ? q2 : q1);
+                    default -> Float.NaN;
+                };
+                if (Float.isNaN(uu)) continue;
+                // v: side faces run top->bottom over the v+d..v+d+h strip;
+                // up/down slabs sit in the header strip and run along z:
+                // right(+z)->v, back(-z)->v+d
+                float vv = face == Direction.UP || face == Direction.DOWN
+                        ? (right ? v : v + d)
+                        : (top ? v + d : v + d + h);
+                vertex.u = uu / texW;
+                vertex.v = vv / texH;
+            }
+        }
+    }
+
+    private static Direction faceOf(ModelPart.Polygon poly, float cx, float cy, float cz) {
+        // face = the axis whose coordinate is constant across the 4 vertices
+        float x0 = poly.vertices[0].pos.x();
+        float y0 = poly.vertices[0].pos.y();
+        float z0 = poly.vertices[0].pos.z();
+        boolean xConst = true;
+        boolean yConst = true;
+        boolean zConst = true;
+        for (ModelPart.Vertex vertex : poly.vertices) {
+            if (Math.abs(vertex.pos.x() - x0) > 1.0e-5f) xConst = false;
+            if (Math.abs(vertex.pos.y() - y0) > 1.0e-5f) yConst = false;
+            if (Math.abs(vertex.pos.z() - z0) > 1.0e-5f) zConst = false;
+        }
+        if (xConst) return x0 < cx ? Direction.WEST : Direction.EAST;
+        if (yConst) return y0 < cy ? Direction.UP : Direction.DOWN;
+        if (zConst) return z0 < cz ? Direction.NORTH : Direction.SOUTH;
+        return null;
     }
 
     private static String sanitizeName(String name) {
