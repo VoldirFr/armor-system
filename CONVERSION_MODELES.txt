@@ -1,0 +1,67 @@
+================================================================
+ ARMOR SYSTEM - Guide de conversion des modeles Blockbench (Bedrock)
+ -> rendu correct en jeu (NeoForge 1.21.1)
+================================================================
+
+POINT DE DEPART
+---------------
+- Modeles faits dans Blockbench en format Bedrock (Box-UV, 128x128).
+- Chaque projet BB exporte -> un "xxx.geo.json" place dans
+  src/main/resources/assets/armorsystem/models/armor/<classe>/
+  (light / medium / heavy) + la texture *_layer_1.png dans textures/armor/.
+
+1) STRUCTURE DES BONES
+----------------------
+Les 6 bones racines MUST s'appeler bipedHead / bipedBody / bipedLeftArm /
+bipedRightArm / bipedLeftLeg / bipedRightLeg : ils deviennent les parts
+vanilla head / body / left_arm / right_arm / left_leg / right_leg.
+- Les bones enfants (armor*chest, armor*leg, armor*boot, shoulders...)
+  sont attaches sous leur bone parent, a l'ecart de pivot.
+- Le slot LEGS cache les boots, le slot FEET cache les legs
+  -> garder les noms armor<classe>leg / armor<classe>boot cote gauche/droite.
+
+2) POSITIONS (y a une inversion !
+--------------------------------
+Bedrock : Y vers le HAUT, personnage de y=0 (pieds) a y=32 (tete).
+Java    : Y vers le BAS.
+Conversion : y_java = 24 - y_bedrock.   X et Z gardent leur signe.
+Pour un bone enfant : offset = pivot_enfant - pivot_parent (meme regle sur Y).
+Pour un cube : le "pivot" n'existe pas en vanilla -> on le recentre a la main :
+  offset_cube = origin - pivot, et le box devient
+  (origin.x - pivot.x, pivot.y - origin.y - size.y, origin.z - pivot.z).
+
+3) ROTATIONS (le piege principal)
+---------------------------------
+Les angles Bedrock (degres) passent TELS QUELS en radians, dans l'ordre
+vanilla rotationZYX. AUCUN signe a inverser.
+Pourquoi : GeckoLib (le renderer d'origine) stocke (-x, -y, +z) et le pose
+vanilla de la couche armure applique scale(-1,-1,1) -> les flips s'annulent.
+- Rotation d'un bone : appliquee au PartPose du part.
+- Rotation d'un cube : vanilla ne supporte PAS la rotation par cube ->
+  chaque cube tourne devient un PART ENFANT dedie, pose =
+  offset vers le pivot du cube + rotation, et le box est exprime
+  relativement a ce pivot (cf. point 2).
+
+4) UV (2e piege)
+----------------
+Bedrock/Blockbench decompte la box differemment que le constructeur vanilla :
+- north/south : meme rect mais coins orientes a 180 deg.
+- east/west : les dalles laterales sont ECHANGEES.
+- up/down : les dalles du haut sont echangees (+ v inverse pour down).
+-> un fix runtime (setGeckoUVs) reecrit les UV de chaque face apres le bake.
+ATTENTION : Blockbench TRONQUE les dimensions fractionnaires a l'entier
+pour l'unwrap Box-UV (10.9 -> 10). Pour l'UV on floor() w/h/d,
+la geometrie garde sa taille exacte.
+- Les cubes "mirror" : les slabs E/W sont inverses physiquement,
+  gere aussi par le fix (flag mirror du cube).
+
+5) RECAP RAPIDE
+---------------
+- bones racines biped* -> parts vanilla, pivots convertis (24 - y).
+- cube sans rotation  -> box direct dans le part du bone.
+- cube avec rotation  -> part enfant dedie (pivot + angles bruts).
+- angles : degres Bedrock -> radians, rien d'autre.
+- UV : layout vanilla corrige a la GeckoLib + floor des dimensions.
+- mirror : flag passe au builder ET au fix UV.
+
+(Le code qui applique tout ca : CustomArmorModels.java)
