@@ -59,16 +59,22 @@ Dépendances (Modrinth maven + `libs/`) : `irons-spells-n-spellbooks` 1.21.1-3.1
 1.21.1-2.4.0, `geckolib-neoforge` 1.21.1-4.8.2 (jar dans `libs/`), `curios` 9.5.1+1.21.1,
 `playeranimator` 2.0.1+1.21.1-forge. `irons_spellbooks` requis dans `neoforge.mods.toml`.
 
-## Modèle 3D des armures légères (1.0.7)
+## Modèle 3D des armures (1.0.7 → 1.0.8)
 
-Les tiers `ultra_light`, `very_light` et `light` utilisent le modèle 3D `tempest_robe`
-(Blockbench Bedrock geometry 1.12.0, 128x128) chargé dynamiquement depuis
-`assets/armorsystem/models/armor/light/tempest_robe.geo.json` et converti en `HumanoidModel`
-(pivots Y up → Y down, rotations négées, cubes rotés éclatés en sous-parts).
+Les 9 tiers utilisent un modèle 3D custom, rangé en 3 familles (_Blockbench Bedrock
+geometry 1.12.0, 128x128_) chargées dynamiquement depuis
+`assets/armorsystem/models/armor/<famille>/<nom>.geo.json` et converties en `HumanoidModel`
+(pivots Y up → Y down, rotations négées, cubes rotés éclatés en sous-parts) :
+
+| Famille | Tier | Géométrie |
+|---|---|---|
+| `light` | ultra_light, very_light, light | `tempest_robe.geo.json` |
+| `medium` | light_medium, medium, heavy_medium | `archer_armor.geo.json` |
+| `heavy` | heavy, very_heavy, ultra_heavy | `paladin_armor.geo.json` |
 
 Le rendu superpose deux passes de texture (mêmes UV) :
-1. `light_shift_layer_1/2.png` — texture grayscale (le vêtement), re-colorée **runtime** par minerai
+1. `<famille>_shift_layer_1/2.png` — texture grayscale (le vêtement), re-colorée **runtime** par minerai
    via un vrai hue-shift (luminance du gris préservée : zones sombres = couleur profonde et saturée,
    zones claires = couleur pâle), générée en `DynamicTexture` dans
-   `armorsystem:dynamic/light_shift/<minerai>`.
-2. `light_layer1_layer_1/2.png` — layer de décorations, rendu **au-dessus**, jamais coloré.
+   `armorsystem:dynamic/<famille>_shift/<minerai>`.
+2. `<famille>_layer1_layer_1/2.png` — layer de décorations, rendu **au-dessus**, jamais coloré.

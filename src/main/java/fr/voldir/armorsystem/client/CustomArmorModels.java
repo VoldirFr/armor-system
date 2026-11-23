@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import fr.voldir.armorsystem.ArmorSystem;
+import fr.voldir.armorsystem.core.ArmorTier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
@@ -27,10 +28,16 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Armor 3D model for the light tiers, loaded from a Blockbench Bedrock geometry file
- * ({@code assets/armorsystem/models/armor/light/tempest_robe.geo.json}, 128x128 UV).
+ * Custom 3D armor models, loaded from Blockbench Bedrock geometry files (128x128 UV),
+ * one per model class (see {@link ArmorTier.ModelClass}):
+ * <ul>
+ *   <li>light  -> {@code models/armor/light/tempest_robe.geo.json}</li>
+ *   <li>medium -> {@code models/armor/medium/archer_armor.geo.json}</li>
+ *   <li>heavy  -> {@code models/armor/heavy/paladin_armor.geo.json}</li>
+ * </ul>
  *
  * <p>Bedrock bones are converted to vanilla {@link HumanoidModel} parts:
  * {@code bipedHead -> "head"}, {@code bipedBody -> "body"},
@@ -48,7 +55,7 @@ import java.util.NoSuchElementException;
  * becomes a child part (non-rotated cubes use {@link PartPose#ZERO}).
  */
 @OnlyIn(Dist.CLIENT)
-public final class LightArmorModels {
+public final class CustomArmorModels {
 
     private static final Map<String, String> ROOT_BONES = Map.of(
             "bipedHead", "head",
@@ -58,23 +65,26 @@ public final class LightArmorModels {
             "bipedLeftLeg", "left_leg",
             "bipedRightLeg", "right_leg");
 
-    private static final Map<EquipmentSlot, HumanoidModel<LivingEntity>> MODELS = new EnumMap<>(EquipmentSlot.class);
+    private static final Map<ArmorTier.ModelClass, Map<EquipmentSlot, HumanoidModel<LivingEntity>>> MODELS =
+            new EnumMap<>(ArmorTier.ModelClass.class);
+    private static final Map<ArmorTier.ModelClass, LayerDefinition> LAYER_DEFINITIONS = new ConcurrentHashMap<>();
 
-    private LightArmorModels() {
+    private CustomArmorModels() {
     }
 
-    /** Returns the (cached) humanoid model for the given slot, with the right sub-parts enabled. */
-    public static HumanoidModel<LivingEntity> modelFor(EquipmentSlot slot) {
-        return MODELS.computeIfAbsent(slot, s -> new HumanoidModel<>(bake(s)));
+    /** Returns the (cached) humanoid model for the given model class + slot, with the right sub-parts enabled. */
+    public static HumanoidModel<LivingEntity> modelFor(ArmorTier.ModelClass modelClass, EquipmentSlot slot) {
+        Map<EquipmentSlot, HumanoidModel<LivingEntity>> bySlot = MODELS.computeIfAbsent(modelClass, c -> new EnumMap<>(EquipmentSlot.class));
+        return bySlot.computeIfAbsent(slot, s -> new HumanoidModel<>(bake(modelClass, s)));
     }
 
     /**
      * Hides garment parts that must not appear twice for a given equipment slot.
-     * The hierarchy is static (see the Bedrock geometry): the leg garment and the boots
-     * are both children of {@code left_leg}/{@code right_leg}.
+     * All 3 geometries share the same hierarchy: the leg garment ({@code armor*leg})
+     * and the boots ({@code armor*boot}) are both children of {@code left_leg}/{@code right_leg}.
      */
-    private static ModelPart bake(EquipmentSlot slot) {
-        ModelPart root = layerDefinition().bakeRoot();
+    private static ModelPart bake(ArmorTier.ModelClass modelClass, EquipmentSlot slot) {
+        ModelPart root = layerDefinition(modelClass).bakeRoot();
         switch (slot) {
             case LEGS -> {
                 setVisible(root, "left_leg", "armorleftboot");
@@ -105,12 +115,17 @@ public final class LightArmorModels {
         }
     }
 
-    public static LayerDefinition layerDefinition() {
+    public static LayerDefinition layerDefinition(ArmorTier.ModelClass modelClass) {
+        return LAYER_DEFINITIONS.computeIfAbsent(modelClass, CustomArmorModels::parseLayerDefinition);
+    }
+
+    private static LayerDefinition parseLayerDefinition(ArmorTier.ModelClass modelClass) {
         MeshDefinition mesh = new MeshDefinition();
         PartDefinition root = mesh.getRoot();
 
-        JsonObject geometry = readGeometry(ResourceLocation.fromNamespaceAndPath(
-                ArmorSystem.MOD_ID, "models/armor/light/tempest_robe.geo.json"));
+        ResourceLocation path = ResourceLocation.fromNamespaceAndPath(
+                ArmorSystem.MOD_ID, modelClass.geometryPath());
+        JsonObject geometry = readGeometry(path);
         JsonObject description = geometry.getAsJsonObject("description");
         int textureWidth = description.get("texture_width").getAsInt();
         int textureHeight = description.get("texture_height").getAsInt();
@@ -243,7 +258,7 @@ public final class LightArmorModels {
             return JsonParser.parseString(json).getAsJsonObject()
                     .getAsJsonArray("minecraft:geometry").get(0).getAsJsonObject();
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to load light armor geometry " + path, e);
+            throw new IllegalStateException("Failed to load custom armor geometry " + path, e);
         }
     }
 }

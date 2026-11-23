@@ -2,6 +2,7 @@ package fr.voldir.armorsystem.registry;
 
 import fr.voldir.armorsystem.ArmorSystem;
 import fr.voldir.armorsystem.core.ArmorSet;
+import fr.voldir.armorsystem.core.ArmorTier;
 import fr.voldir.armorsystem.core.Mineral;
 import fr.voldir.armorsystem.item.ArmorSetItem;
 import java.util.EnumMap;
@@ -25,8 +26,11 @@ public class ModArmorMaterials {
             DeferredRegister.create(Registries.ARMOR_MATERIAL, ArmorSystem.MOD_ID);
 
     public static final ResourceLocation BASE_LAYER_ASSET = ResourceLocation.withDefaultNamespace("iron");
-    public static final ResourceLocation LIGHT_SHIFT_ASSET = ResourceLocation.fromNamespaceAndPath(ArmorSystem.MOD_ID, "light_shift");
-    public static final ResourceLocation LIGHT_LAYER1_ASSET = ResourceLocation.fromNamespaceAndPath(ArmorSystem.MOD_ID, "light_layer1");
+
+    /** Asset id for a custom model layer, e.g. {@code armorsystem:light_shift} / {@code armorsystem:heavy_layer1}. */
+    public static ResourceLocation modelAsset(ArmorTier.ModelClass modelClass, String layer) {
+        return ResourceLocation.fromNamespaceAndPath(ArmorSystem.MOD_ID, modelClass.id() + "_" + layer);
+    }
 
     private static final Map<String, DeferredHolder<ArmorMaterial, ArmorMaterial>> HOLDERS = new HashMap<>();
 
@@ -53,12 +57,13 @@ public class ModArmorMaterials {
             };
             defense.put(type, Math.max(1, (int) Math.round(Mineral.IRON.armorTotal() * weight)));
         }
-        // Light tiers use the custom 3D model with two layers: the hue-shifted garment
-        // (shift texture, re-colored per mineral) and the fixed decoration layer on top.
-        List<ArmorMaterial.Layer> layers = set.tier().usesLightModel()
+        // Custom-model tiers (light/medium/heavy) use the custom 3D model with two layers:
+        // the hue-shifted garment (shift texture, re-colored per mineral) and the fixed
+        // decoration layer on top. Other tiers fall back to vanilla-style dyeable layers.
+        List<ArmorMaterial.Layer> layers = set.tier().usesCustomModel()
                 ? List.of(
-                        new ArmorMaterial.Layer(LIGHT_SHIFT_ASSET, "", false),
-                        new ArmorMaterial.Layer(LIGHT_LAYER1_ASSET, "", false))
+                        new ArmorMaterial.Layer(modelAsset(set.tier().modelClass(), "shift"), "", false),
+                        new ArmorMaterial.Layer(modelAsset(set.tier().modelClass(), "layer1"), "", false))
                 : List.of(
                         new ArmorMaterial.Layer(BASE_LAYER_ASSET, "", true),
                         new ArmorMaterial.Layer(ResourceLocation.fromNamespaceAndPath(ArmorSystem.MOD_ID, ArmorSetItem.COLOR_LAYER_NAME), "", true));

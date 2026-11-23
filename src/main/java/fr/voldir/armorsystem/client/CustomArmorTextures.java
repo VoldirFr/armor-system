@@ -1,11 +1,12 @@
 package fr.voldir.armorsystem.client;
 
+import fr.voldir.armorsystem.ArmorSystem;
+import fr.voldir.armorsystem.core.ArmorTier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FastColor;
 import net.minecraft.util.Mth;
-import fr.voldir.armorsystem.ArmorSystem;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
@@ -14,9 +15,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Client-side generation of the hue-shifted "shift" texture for the light armor model.
+ * Client-side generation of the hue-shifted "shift" texture for the custom armor models
+ * (one per model class: light / medium / heavy, see {@link ArmorTier.ModelClass}).
  *
- * <p>The base texture ({@code textures/models/armor/light_shift_layer_1.png}) is pure
+ * <p>Each base texture ({@code textures/models/armor/<class>_shift_layer_1.png}) is pure
  * grayscale: it holds the shading (luminance) of the garment. Instead of brute-force
  * multiplying a tint over it (which crushes the shading), every pixel is re-colored by
  * mapping its luminance onto the mineral color while keeping the grayscale luminance:
@@ -27,20 +29,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * done manually.
  */
 @OnlyIn(Dist.CLIENT)
-public final class LightArmorTextures {
-
-    private static final ResourceLocation BASE_TEXTURE = ResourceLocation.fromNamespaceAndPath(
-            ArmorSystem.MOD_ID, "textures/models/armor/light_shift_layer_1.png");
+public final class CustomArmorTextures {
 
     private static final Map<String, ResourceLocation> CACHE = new ConcurrentHashMap<>();
 
-    private LightArmorTextures() {
+    private CustomArmorTextures() {
     }
 
-    /** Returns the hue-shifted texture for a mineral key + color, generating it on first use. */
-    public static ResourceLocation hueShifted(String mineralKey, int colorArgb) {
-        String key = safeKey(mineralKey);
-        return CACHE.computeIfAbsent(key, k -> register(k, colorArgb));
+    /** Returns the hue-shifted texture for a model class + mineral key + color, generating it on first use. */
+    public static ResourceLocation hueShifted(ArmorTier.ModelClass modelClass, String mineralKey, int colorArgb) {
+        String key = modelClass.id() + "/" + safeKey(mineralKey);
+        return CACHE.computeIfAbsent(key, k -> register(modelClass, safeKey(mineralKey), colorArgb));
     }
 
     private static String safeKey(String mineralKey) {
@@ -55,15 +54,18 @@ public final class LightArmorTextures {
         return sb.toString();
     }
 
-    private static ResourceLocation register(String key, int colorArgb) {
+    private static ResourceLocation register(ArmorTier.ModelClass modelClass, String mineralKey, int colorArgb) {
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath(
-                ArmorSystem.MOD_ID, "dynamic/light_shift/" + key);
-        try (InputStream in = Minecraft.getInstance().getResourceManager().getResource(BASE_TEXTURE).get().open()) {
+                ArmorSystem.MOD_ID, "dynamic/" + modelClass.id() + "_shift/" + mineralKey);
+        ResourceLocation baseTexture = ResourceLocation.fromNamespaceAndPath(
+                ArmorSystem.MOD_ID, "textures/models/armor/" + modelClass.id() + "_shift_layer_1.png");
+        try (InputStream in = Minecraft.getInstance().getResourceManager().getResource(baseTexture).get().open()) {
             com.mojang.blaze3d.platform.NativeImage image = com.mojang.blaze3d.platform.NativeImage.read(in);
             hueShift(image, colorArgb);
             Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(image));
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to generate hue-shifted light armor texture for " + key, e);
+            throw new IllegalStateException("Failed to generate hue-shifted " + modelClass.id()
+                    + " armor texture for " + mineralKey, e);
         }
         return id;
     }
