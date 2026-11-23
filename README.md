@@ -58,3 +58,17 @@ Les jar publiées vivent dans `releases/` (1.0.0, 1.0.1, ...).
 Dépendances (Modrinth maven + `libs/`) : `irons-spells-n-spellbooks` 1.21.1-3.16.4, `irons-lib`
 1.21.1-2.4.0, `geckolib-neoforge` 1.21.1-4.8.2 (jar dans `libs/`), `curios` 9.5.1+1.21.1,
 `playeranimator` 2.0.1+1.21.1-forge. `irons_spellbooks` requis dans `neoforge.mods.toml`.
+
+## Modèle 3D des armures légères (1.0.7)
+
+Les tiers `ultra_light`, `very_light` et `light` utilisent le modèle 3D `tempest_robe`
+(Blockbench Bedrock geometry 1.12.0, 128x128) chargé dynamiquement depuis
+`assets/armorsystem/models/armor/light/tempest_robe.geo.json` et converti en `HumanoidModel`
+(pivots Y up → Y down, rotations négées, cubes rotés éclatés en sous-parts).
+
+Le rendu superpose deux passes de texture (mêmes UV) :
+1. `light_shift_layer_1/2.png` — texture grayscale (le vêtement), re-colorée **runtime** par minerai
+   via un vrai hue-shift (luminance du gris préservée : zones sombres = couleur profonde et saturée,
+   zones claires = couleur pâle), générée en `DynamicTexture` dans
+   `armorsystem:dynamic/light_shift/<minerai>`.
+2. `light_layer1_layer_1/2.png` — layer de décorations, rendu **au-dessus**, jamais coloré.

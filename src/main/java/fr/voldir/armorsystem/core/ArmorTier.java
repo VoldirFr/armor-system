@@ -33,4 +33,9 @@ public enum ArmorTier {
         }
         return null;
     }
+
+    /** Tiers rendered with the custom light armor 3D model (tempest_robe). */
+    public boolean usesLightModel() {
+        return this == ULTRA_LIGHT || this == VERY_LIGHT || this == LIGHT;
+    }
 }

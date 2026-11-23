@@ -25,6 +25,8 @@ public class ModArmorMaterials {
             DeferredRegister.create(Registries.ARMOR_MATERIAL, ArmorSystem.MOD_ID);
 
     public static final ResourceLocation BASE_LAYER_ASSET = ResourceLocation.withDefaultNamespace("iron");
+    public static final ResourceLocation LIGHT_SHIFT_ASSET = ResourceLocation.fromNamespaceAndPath(ArmorSystem.MOD_ID, "light_shift");
+    public static final ResourceLocation LIGHT_LAYER1_ASSET = ResourceLocation.fromNamespaceAndPath(ArmorSystem.MOD_ID, "light_layer1");
 
     private static final Map<String, DeferredHolder<ArmorMaterial, ArmorMaterial>> HOLDERS = new HashMap<>();
 
@@ -51,15 +53,21 @@ public class ModArmorMaterials {
             };
             defense.put(type, Math.max(1, (int) Math.round(Mineral.IRON.armorTotal() * weight)));
         }
+        // Light tiers use the custom 3D model with two layers: the hue-shifted garment
+        // (shift texture, re-colored per mineral) and the fixed decoration layer on top.
+        List<ArmorMaterial.Layer> layers = set.tier().usesLightModel()
+                ? List.of(
+                        new ArmorMaterial.Layer(LIGHT_SHIFT_ASSET, "", false),
+                        new ArmorMaterial.Layer(LIGHT_LAYER1_ASSET, "", false))
+                : List.of(
+                        new ArmorMaterial.Layer(BASE_LAYER_ASSET, "", true),
+                        new ArmorMaterial.Layer(ResourceLocation.fromNamespaceAndPath(ArmorSystem.MOD_ID, ArmorSetItem.COLOR_LAYER_NAME), "", true));
         return new ArmorMaterial(
                 defense,
                 Mineral.IRON.enchantability(),
                 equipSound(),
                 () -> Ingredient.of(ModTags.ARMOR_INGOTS),
-                List.of(
-                        new ArmorMaterial.Layer(BASE_LAYER_ASSET, "", true),
-                        new ArmorMaterial.Layer(ResourceLocation.fromNamespaceAndPath(ArmorSystem.MOD_ID, ArmorSetItem.COLOR_LAYER_NAME), "", true)
-                ),
+                layers,
                 (float) Mineral.IRON.toughness(),
                 (float) Mineral.IRON.knockbackResistance()
         );

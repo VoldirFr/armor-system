@@ -1,10 +1,15 @@
 package fr.voldir.armorsystem;
 
 import fr.voldir.armorsystem.client.IngotColorResolver;
+import fr.voldir.armorsystem.client.LightArmorModels;
+import fr.voldir.armorsystem.client.LightArmorTextures;
 import fr.voldir.armorsystem.config.ArmorSystemConfig;
+import fr.voldir.armorsystem.core.Mineral;
 import fr.voldir.armorsystem.item.ArmorSetItem;
 import fr.voldir.armorsystem.registry.ModItems;
 import net.minecraft.client.color.item.ItemColor;
+import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ArmorMaterial;
 import net.minecraft.world.item.ItemStack;
@@ -37,10 +42,23 @@ public class ArmorSystemClient {
             event.registerItem(new IClientItemExtensions() {
                 @Override
                 public int getArmorLayerTintColor(ItemStack stack, LivingEntity entity, ArmorMaterial.Layer layer, int layerIndex, int fallbackColor) {
-                    if (layer.dyeable()) {
+                    if (!item.getSet().tier().usesLightModel() && layer.dyeable()) {
                         return 0xFF000000 | colorOf(item, stack);
                     }
+                    // Light tiers: the hue shift is baked into the generated texture, no tint.
                     return 0xFFFFFFFF;
+                }
+
+                @Override
+                public HumanoidModel<?> getHumanoidArmorModel(LivingEntity livingEntity, ItemStack itemStack, EquipmentSlot equipmentSlot, HumanoidModel<?> original) {
+                    if (!item.getSet().tier().usesLightModel()) {
+                        return original;
+                    }
+                    // Make sure the hue-shifted texture for this mineral is registered
+                    // before the armor layer resolves the texture id.
+                    var mineral = item.getMineral(itemStack);
+                    LightArmorTextures.hueShifted(mineral == null ? Mineral.IRON.id() : mineral.id(), colorOf(item, itemStack));
+                    return LightArmorModels.modelFor(equipmentSlot);
                 }
             }, item);
         }

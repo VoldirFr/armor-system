@@ -55,6 +55,25 @@ public class ArmorSetItem extends ArmorItem {
     }
 
     @Override
+    public ResourceLocation getArmorTexture(ItemStack stack, net.minecraft.world.entity.Entity entity,
+                                            net.minecraft.world.entity.EquipmentSlot slot,
+                                            ArmorMaterial.Layer layer, boolean innerModel) {
+        if (set.tier().usesLightModel()) {
+            // Light armor: the shift layer must be the hue-shifted texture generated for
+            // this piece's mineral. The texture itself is registered client-side, but its
+            // id is deterministic so this stays server-safe (no client classes referenced).
+            ResourceLocation layerTexture = layer.texture(innerModel);
+            if (layerTexture.getPath().contains("light_shift")) {
+                Mineral mineral = getMineral(stack);
+                String key = mineral == null ? Mineral.IRON.id() : mineral.id();
+                return ResourceLocation.fromNamespaceAndPath(ArmorSystem.MOD_ID, "dynamic/light_shift/" + key);
+            }
+            return null; // layer1 (fixed decoration): default path, no color change.
+        }
+        return super.getArmorTexture(stack, entity, slot, layer, innerModel);
+    }
+
+    @Override
     public Component getName(ItemStack stack) {
         if (stack.getItem() != this || stack.get(ModDataComponents.MATERIAL.get()) == null) {
             return super.getName(stack);
