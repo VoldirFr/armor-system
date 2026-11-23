@@ -63,6 +63,8 @@ dependencies {
     implementation files("libs/geckolib-neoforge-${project.geckolib_version}.jar")
     implementation "maven.modrinth:curios:${project.curios_version}"
     implementation "maven.modrinth:playeranimator:${project.playeranimator_version}"
+    // Epic Fight (compat optionnelle) : compileOnly, le mod est fourni par le modpack au runtime
+    compileOnly files("libs/epic-fight-21.17.3.1-mc1.21.1-neoforge.jar")
 }
 
 // Expands the version placeholders in neoforge.mods.toml at build time.

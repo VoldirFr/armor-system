@@ -88,7 +88,20 @@ public final class CustomArmorModels {
     /** Returns the (cached) humanoid model for the given model class + slot, with the right sub-parts enabled. */
     public static HumanoidModel<LivingEntity> modelFor(ArmorTier.ModelClass modelClass, EquipmentSlot slot) {
         Map<EquipmentSlot, HumanoidModel<LivingEntity>> bySlot = MODELS.computeIfAbsent(modelClass, c -> new EnumMap<>(EquipmentSlot.class));
-        return bySlot.computeIfAbsent(slot, s -> new HumanoidModel<>(bake(modelClass, s)));
+        return bySlot.computeIfAbsent(slot, s -> new CustomArmor(bake(modelClass, s), s));
+    }
+
+    /**
+     * Marker model: lets {@link EpicFightArmorCompat} recognize models baked by this mod
+     * (Epic Fight's vanilla transformer would tear their large cubes apart).
+     */
+    public static final class CustomArmor extends HumanoidModel<LivingEntity> {
+        public final EquipmentSlot slot;
+
+        CustomArmor(ModelPart root, EquipmentSlot slot) {
+            super(root);
+            this.slot = slot;
+        }
     }
 
     /**

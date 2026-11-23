@@ -26,6 +26,10 @@ public class ArmorSystemClient {
     public ArmorSystemClient(IEventBus modEventBus) {
         modEventBus.addListener(ArmorSystemClient::onRegisterItemColors);
         modEventBus.addListener(ArmorSystemClient::onRegisterClientExtensions);
+        // Epic Fight compatibility: only touch Epic Fight classes when the mod is present.
+        if (net.neoforged.fml.ModList.get().isLoaded("epicfight")) {
+            fr.voldir.armorsystem.client.EpicFightArmorCompat.register();
+        }
     }
 
     private static void onRegisterItemColors(RegisterColorHandlersEvent.Item event) {
