@@ -17,7 +17,6 @@ import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.api.distmarker.Dist;
@@ -51,10 +50,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * they follow the head animation.
  *
  * <p>Conversion from Bedrock space (Y up, feet at 0, 32 px figure) to Java model space
- * (Y down): {@code y_java = 24 - y_bedrock}; X and Z keep their sign. Rotations are
- * converted to the Java composition (Rz*Ry*Rx) by conjugating the Bedrock matrix
- * (Rx*Ry*Rz, right-handed) with the Y-flip flip: the resulting angles are
- * {@code (-x, +y, -z)}, and multi-axis rotations use the exact ZYX Euler extraction
+ * (Y down): {@code y_java = 24 - y_bedrock}; X and Z keep their sign. Rotations pass
+ * through unchanged (degrees&rarr;radians, vanilla's {@code rotationZYX} composition):
+ * GeckoLib's x/y negations and the vanilla armor-layer {@code scale(-1,-1,1)} cancel out
  * (see {@link #toJavaAngles}).
  *
  * <p>Vanilla {@code CubeListBuilder} does not support per-cube rotation, so each cube
@@ -170,51 +168,22 @@ public final class CustomArmorModels {
     }
 
     /**
-     * Converts a Bedrock rotation (degrees, composition Rx(rx)*Ry(ry)*Rz(rz), right-handed)
-     * to vanilla {@link net.minecraft.client.model.geom.PartPose} angles (radians, composition
-     * Rz(zRot)*Ry(yRot)*Rx(xRot)) under the Bedrock&larr;&rarr;Java mapping {@code (x, -y, z)}.
+     * Converts a Bedrock rotation (degrees) to vanilla {@link PartPose} angles (radians).
      *
-     * <p>For single-axis rotations this reduces to {@code (-rx, +ry, -rz)} — note that Y keeps
-     * its sign, contrary to X and Z. For multi-axis rotations the exact ZYX Euler angles of the
-     * conjugated matrix are extracted so the composition order matches vanilla.
+     * <p>Reference: GeckoLib 4.9.3 (the renderer the source geometries were made for).
+     * GeckoLib stores a bone/cube rotation as {@code (-rx, -ry, +rz)} radians and applies
+     * it with {@code rotationZYX(z', y', x')} in its own space, whose frame is reached
+     * from the vanilla armor pose by {@code scale(-1,-1,1)} (vanilla humanoid armor layer).
+     * Conjugating the GeckoLib quaternion by {@code diag(-1,-1,1)} negates x and y back:
+     * the resulting vanilla-model-space rotation is {@code Rz(rz)*Ry(ry)*Rx(rx)} with the
+     * <b>raw</b> Bedrock angles — exactly the vanilla {@code rotationZYX(xRot, yRot, zRot)}
+     * composition. The Bedrock&larr;&rarr;Java y-flip and GeckoLib's frame flips cancel out.
      */
     private static float[] toJavaAngles(float bx, float by, float bz) {
-        if (bx == 0f && by == 0f && bz == 0f) {
-            return new float[3];
-        }
-        // B = Rx(rx) * Ry(ry) * Rz(rz), right-handed, angles in radians
-        double rx = Math.toRadians(bx), ry = Math.toRadians(by), rz = Math.toRadians(bz);
-        double cx = Math.cos(rx), sx = Math.sin(rx);
-        double cy = Math.cos(ry), sy = Math.sin(ry);
-        double cz = Math.cos(rz), sz = Math.sin(rz);
-        double[][] b = {
-                {cy * cz, -cy * sz, sy},
-                {cx * sz + sx * sy * cz, cx * cz - sx * sy * sz, -sx * cy},
-                {sx * sz - cx * sy * cz, sx * cz + cx * sy * sz, cx * cy}
-        };
-        // Conjugate by the Y-flip (diag(1, -1, 1)) to land in Java model space.
-        // Then extract ZYX Euler angles: A = Rz(z)*Ry(y)*Rx(x) with
-        //   y = -asin(A[2][0]), x = atan2(A[2][1], A[2][2]), z = atan2(A[1][0], A[0][0]).
-        // Conjugation flips the sign of every entry with exactly one index equal to 1 (the Y row/column).
-        double[][] a = new double[3][3];
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                double s = (i == 1) == (j == 1) ? 1.0 : -1.0;
-                a[i][j] = s * b[i][j];
-            }
-        }
-        double yRot = -Math.asin(Mth.clamp(a[2][0], -1.0, 1.0));
-        double xRot;
-        double zRot;
-        if (Math.abs(Math.abs(a[2][0]) - 1.0) > 1.0e-7) {
-            xRot = Math.atan2(a[2][1], a[2][2]);
-            zRot = Math.atan2(a[1][0], a[0][0]);
-        } else {
-            // Gimbal lock: pitch is +-90deg; fold the residual into the roll.
-            xRot = Math.atan2(-a[1][2], a[1][1]);
-            zRot = 0.0;
-        }
-        return new float[]{(float) xRot, (float) yRot, (float) zRot};
+        return new float[]{
+                (float) Math.toRadians(bx),
+                (float) Math.toRadians(by),
+                (float) Math.toRadians(bz)};
     }
 
     /** Creates the part of a bone (and its parent chain). */
