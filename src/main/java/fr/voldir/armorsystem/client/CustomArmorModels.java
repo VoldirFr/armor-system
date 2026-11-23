@@ -246,9 +246,9 @@ public final class CustomArmorModels {
         }
 
         float[] rot = bone.has("rotation") ? floats(bone.getAsJsonArray("rotation")) : new float[3];
+        // toJavaAngles already returns radians.
         float[] jr = toJavaAngles(rot[0], rot[1], rot[2]);
-        PartPose pose = PartPose.offsetAndRotation(dx, dy, dz,
-                Mth.DEG_TO_RAD * jr[0], Mth.DEG_TO_RAD * jr[1], Mth.DEG_TO_RAD * jr[2]);
+        PartPose pose = PartPose.offsetAndRotation(dx, dy, dz, jr[0], jr[1], jr[2]);
 
         // A root-level biped* bone IS the vanilla humanoid part; other bones nest under it.
         boolean isVanillaPart = parent == root && ROOT_BONES.containsKey(name);
@@ -286,14 +286,13 @@ public final class CustomArmorModels {
             if (cube.has("rotation")) {
                 float[] pivot = floats(cube.getAsJsonArray("pivot"));
                 float[] rot = floats(cube.getAsJsonArray("rotation"));
+                // toJavaAngles already returns radians.
                 float[] jr = toJavaAngles(rot[0], rot[1], rot[2]);
                 pose = PartPose.offsetAndRotation(
                         pivot[0] - bonePivot[0],
                         bonePivot[1] - pivot[1],
                         pivot[2] - bonePivot[2],
-                        Mth.DEG_TO_RAD * jr[0],
-                        Mth.DEG_TO_RAD * jr[1],
-                        Mth.DEG_TO_RAD * jr[2]);
+                        jr[0], jr[1], jr[2]);
                 rel = new float[]{origin[0] - pivot[0], pivot[1] - origin[1] - size[1], origin[2] - pivot[2]};
             } else {
                 pose = PartPose.ZERO;
