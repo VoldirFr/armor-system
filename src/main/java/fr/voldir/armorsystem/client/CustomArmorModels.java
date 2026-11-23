@@ -48,8 +48,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * they follow the head animation.
  *
  * <p>Conversion from Bedrock space (Y up, feet at 0, 32 px figure) to Java model space
- * (Y down): {@code y_java = 24 - y_bedrock}; X and Z keep their sign; rotations are
- * negated on all three axes.
+ * (Y down): {@code y_java = 24 - y_bedrock}; X and Z keep their sign. Rotations are
+ * converted to the Java composition (Rz*Ry*Rx) by conjugating the Bedrock matrix
+ * (Rx*Ry*Rz, right-handed) with the Y-flip flip: the resulting angles are
+ * {@code (-x, +y, -z)}, and multi-axis rotations use the exact ZYX Euler extraction
+ * (see {@link #toJavaAngles}).
  *
  * <p>Vanilla {@code CubeListBuilder} does not support per-cube rotation, so each cube
  * becomes a child part (non-rotated cubes use {@link PartPose#ZERO}).
@@ -151,6 +154,54 @@ public final class CustomArmorModels {
         return bone.has("pivot") ? floats(bone.getAsJsonArray("pivot")) : new float[]{0f, 24f, 0f};
     }
 
+    /**
+     * Converts a Bedrock rotation (degrees, composition Rx(rx)*Ry(ry)*Rz(rz), right-handed)
+     * to vanilla {@link net.minecraft.client.model.geom.PartPose} angles (radians, composition
+     * Rz(zRot)*Ry(yRot)*Rx(xRot)) under the Bedrock&larr;&rarr;Java mapping {@code (x, -y, z)}.
+     *
+     * <p>For single-axis rotations this reduces to {@code (-rx, +ry, -rz)} — note that Y keeps
+     * its sign, contrary to X and Z. For multi-axis rotations the exact ZYX Euler angles of the
+     * conjugated matrix are extracted so the composition order matches vanilla.
+     */
+    private static float[] toJavaAngles(float bx, float by, float bz) {
+        if (bx == 0f && by == 0f && bz == 0f) {
+            return new float[3];
+        }
+        // B = Rx(rx) * Ry(ry) * Rz(rz), right-handed, angles in radians
+        double rx = Math.toRadians(bx), ry = Math.toRadians(by), rz = Math.toRadians(bz);
+        double cx = Math.cos(rx), sx = Math.sin(rx);
+        double cy = Math.cos(ry), sy = Math.sin(ry);
+        double cz = Math.cos(rz), sz = Math.sin(rz);
+        double[][] b = {
+                {cy * cz, -cy * sz, sy},
+                {cx * sz + sx * sy * cz, cx * cz - sx * sy * sz, -sx * cy},
+                {sx * sz - cx * sy * cz, sx * cz + cx * sy * sz, cx * cy}
+        };
+        // Conjugate by the Y-flip (diag(1, -1, 1)) to land in Java model space.
+        // Then extract ZYX Euler angles: A = Rz(z)*Ry(y)*Rx(x) with
+        //   y = -asin(A[2][0]), x = atan2(A[2][1], A[2][2]), z = atan2(A[1][0], A[0][0]).
+        // Conjugation flips the sign of every entry with exactly one index equal to 1 (the Y row/column).
+        double[][] a = new double[3][3];
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                double s = (i == 1) == (j == 1) ? 1.0 : -1.0;
+                a[i][j] = s * b[i][j];
+            }
+        }
+        double yRot = -Math.asin(Mth.clamp(a[2][0], -1.0, 1.0));
+        double xRot;
+        double zRot;
+        if (Math.abs(Math.abs(a[2][0]) - 1.0) > 1.0e-7) {
+            xRot = Math.atan2(a[2][1], a[2][2]);
+            zRot = Math.atan2(a[1][0], a[0][0]);
+        } else {
+            // Gimbal lock: pitch is +-90deg; fold the residual into the roll.
+            xRot = Math.atan2(-a[1][2], a[1][1]);
+            zRot = 0.0;
+        }
+        return new float[]{(float) xRot, (float) yRot, (float) zRot};
+    }
+
     /** Creates the part of a bone (and its parent chain). */
     private static void createPart(Map<String, JsonObject> bones, Map<String, PartDefinition> parts,
                                    PartDefinition root, String name) {
@@ -180,8 +231,9 @@ public final class CustomArmorModels {
         }
 
         float[] rot = bone.has("rotation") ? floats(bone.getAsJsonArray("rotation")) : new float[3];
+        float[] jr = toJavaAngles(rot[0], rot[1], rot[2]);
         PartPose pose = PartPose.offsetAndRotation(dx, dy, dz,
-                Mth.DEG_TO_RAD * -rot[0], Mth.DEG_TO_RAD * -rot[1], Mth.DEG_TO_RAD * -rot[2]);
+                Mth.DEG_TO_RAD * jr[0], Mth.DEG_TO_RAD * jr[1], Mth.DEG_TO_RAD * jr[2]);
 
         // A root-level biped* bone IS the vanilla humanoid part; other bones nest under it.
         boolean isVanillaPart = parent == root && ROOT_BONES.containsKey(name);
@@ -216,13 +268,14 @@ public final class CustomArmorModels {
             if (cube.has("rotation")) {
                 float[] pivot = floats(cube.getAsJsonArray("pivot"));
                 float[] rot = floats(cube.getAsJsonArray("rotation"));
+                float[] jr = toJavaAngles(rot[0], rot[1], rot[2]);
                 pose = PartPose.offsetAndRotation(
                         pivot[0] - bonePivot[0],
                         bonePivot[1] - pivot[1],
                         pivot[2] - bonePivot[2],
-                        Mth.DEG_TO_RAD * -rot[0],
-                        Mth.DEG_TO_RAD * -rot[1],
-                        Mth.DEG_TO_RAD * -rot[2]);
+                        Mth.DEG_TO_RAD * jr[0],
+                        Mth.DEG_TO_RAD * jr[1],
+                        Mth.DEG_TO_RAD * jr[2]);
                 rel = new float[]{origin[0] - pivot[0], pivot[1] - origin[1] - size[1], origin[2] - pivot[2]};
             } else {
                 pose = PartPose.ZERO;
